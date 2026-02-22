@@ -16,35 +16,35 @@ import bcrypt
 
 # --- DB URLs ---
 # SQLAlchemy can use "postgresql+psycopg2://"
-SQLALCHEMY_DATABASE_URL = os.environ.get(
-    "SQLALCHEMY_DATABASE_URL",
-    os.environ.get(
-        "DATABASE_URL",
-        # "postgresql+psycopg2://reuser:repass@grid-iitb-postgresql:5432/redb"
-        "postgresql+psycopg2://reuser:repass@zs80g4g40css80cck00kcc4k:5000/redb"
-    )
+# SQLALCHEMY_DATABASE_URL = os.environ.get(
+#     "SQLALCHEMY_DATABASE_URL",
+#     os.environ.get(
+#         "DATABASE_URL",
+#         # "postgresql+psycopg2://reuser:repass@grid-iitb-postgresql:5432/redb"
+#         "postgresql+psycopg2://reuser:repass@zs80g4g40css80cck00kcc4k:5000/redb"
+#     )
+# )
+
+# psycopg2 must NOT have "+psycopg2"
+# PSYCOPG2_DSN = os.environ.get(
+#     "PSYCOPG2_DSN",
+#     os.environ.get(
+#         "DATABASE_URL",
+#         # "postgresql://reuser:repass@grid-iitb-postgresql:5432/redb"
+#         "postgresql://reuser:repass@zs80g4g40css80cck00kcc4k:5000/redb"
+#     ).replace("postgresql+psycopg2://", "postgresql://")
+# )
+
+SQLALCHEMY_DATABASE_URL = (
+    "postgresql+psycopg2://postgres:8q09TK7gEhrMjbg3Cimn46qOoP9P67dIb0iweCHFi0FkZ11fVQYCz4ZIOBuLqJd7"
+    "@zs80g4g40css80cck00kcc4k:5432/postgres"
 )
 
 # psycopg2 must NOT have "+psycopg2"
-PSYCOPG2_DSN = os.environ.get(
-    "PSYCOPG2_DSN",
-    os.environ.get(
-        "DATABASE_URL",
-        # "postgresql://reuser:repass@grid-iitb-postgresql:5432/redb"
-        "postgresql://reuser:repass@zs80g4g40css80cck00kcc4k:5000/redb"
-    ).replace("postgresql+psycopg2://", "postgresql://")
+PSYCOPG2_DSN = (
+    "postgresql://postgres:8q09TK7gEhrMjbg3Cimn46qOoP9P67dIb0iweCHFi0FkZ11fVQYCz4ZIOBuLqJd7"
+    "@zs80g4g40css80cck00kcc4k:5432/postgres"
 )
-
-# SQLALCHEMY_DATABASE_URL = (
-#     "postgresql+psycopg2://postgres:8q09TK7gEhrMjbg3Cimn46qOoP9P67dIb0iweCHFi0FkZ11fVQYCz4ZIOBuLqJd7"
-#     "@zs80g4g40css80cck00kcc4k:5432/postgres"
-# )
-
-# # psycopg2 must NOT have "+psycopg2"
-# PSYCOPG2_DSN = (
-#     "postgresql://postgres:8q09TK7gEhrMjbg3Cimn46qOoP9P67dIb0iweCHFi0FkZ11fVQYCz4ZIOBuLqJd7"
-#     "@zs80g4g40css80cck00kcc4k:5432/postgres"
-# )
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
 
