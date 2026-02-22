@@ -9,7 +9,15 @@ import psycopg2
 import psycopg2.extras
 
 from fastapi import FastAPI, Query
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, textfrom fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # or your frontend domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- DB URLs ---
 # SQLAlchemy can use "postgresql+psycopg2://"
