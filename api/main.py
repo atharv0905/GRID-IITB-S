@@ -20,7 +20,8 @@ SQLALCHEMY_DATABASE_URL = os.environ.get(
     "SQLALCHEMY_DATABASE_URL",
     os.environ.get(
         "DATABASE_URL",
-        "postgresql+psycopg2://reuser:repass@grid-iitb-postgresql:5432/redb"
+        # "postgresql+psycopg2://reuser:repass@grid-iitb-postgresql:5432/redb"
+        "postgresql+psycopg2://reuser:repass@zs80g4g40css80cck00kcc4k:5000/redb"
     )
 )
 
@@ -29,7 +30,8 @@ PSYCOPG2_DSN = os.environ.get(
     "PSYCOPG2_DSN",
     os.environ.get(
         "DATABASE_URL",
-        "postgresql://reuser:repass@grid-iitb-postgresql:5432/redb"
+        # "postgresql://reuser:repass@grid-iitb-postgresql:5432/redb"
+        "postgresql://reuser:repass@zs80g4g40css80cck00kcc4k:5000/redb"
     ).replace("postgresql+psycopg2://", "postgresql://")
 )
 
