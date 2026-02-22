@@ -13,6 +13,7 @@ from sqlalchemy import create_engine, text
 from fastapi.middleware.cors import CORSMiddleware
 
 
+
 # --- DB URLs ---
 # SQLAlchemy can use "postgresql+psycopg2://"
 SQLALCHEMY_DATABASE_URL = os.environ.get(
@@ -46,10 +47,13 @@ PSYCOPG2_DSN = os.environ.get(
 engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
 
 app = FastAPI(title="Forecast API")
+origins = [
+    "https://grid.algodevopss.in",
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or your frontend domain
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
