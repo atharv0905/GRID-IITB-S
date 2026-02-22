@@ -12,7 +12,7 @@ from fastapi import FastAPI, Query
 from sqlalchemy import create_engine, text
 from fastapi.middleware.cors import CORSMiddleware
 
-
+import bcrypt
 
 # --- DB URLs ---
 # SQLAlchemy can use "postgresql+psycopg2://"
@@ -69,24 +69,54 @@ class LoginRequest(BaseModel):
 def health():
     return {"ok": True}
 
+# def authenticate_user(username: str, password: str) -> bool:
+#     try:
+#         conn = psycopg2.connect(PSYCOPG2_DSN)
+#         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+#         query = """
+#             SELECT 1
+#             FROM users
+#             WHERE uname = %s
+#               AND password = crypt(%s, password)
+#         """
+#         cur.execute(query, (username, password))
+#         result = cur.fetchone()
+
+#         cur.close()
+#         conn.close()
+
+#         return result is not None
+
+#     except Exception as e:
+#         print("Auth DB error:", e)
+#         return False
+
 def authenticate_user(username: str, password: str) -> bool:
     try:
         conn = psycopg2.connect(PSYCOPG2_DSN)
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        query = """
-            SELECT 1
-            FROM users
-            WHERE uname = %s
-              AND password = crypt(%s, password)
-        """
-        cur.execute(query, (username, password))
-        result = cur.fetchone()
+        cur.execute(
+            "SELECT password FROM users WHERE uname = %s",
+            (username,)
+        )
+        user = cur.fetchone()
 
         cur.close()
         conn.close()
 
-        return result is not None
+        # user not found
+        if not user:
+            return False
+
+        stored_hash = user["password"]
+
+        # bcrypt check
+        return bcrypt.checkpw(
+            password.encode("utf-8"),
+            stored_hash.encode("utf-8")
+        )
 
     except Exception as e:
         print("Auth DB error:", e)
