@@ -193,3 +193,7 @@ def series(plant_id: str, run_id: str):
     with engine.begin() as conn:
         rows = conn.execute(text(q), {"pid": plant_id, "rid": run_id}).mappings().all()
     return {"run_id": run_id, "items": list(rows)}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=7000)
