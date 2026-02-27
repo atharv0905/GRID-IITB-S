@@ -14,10 +14,22 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import bcrypt
 
-SQLALCHEMY_DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+psycopg2://reuser:repass@zs80g4g40css80cck00kcc4k:5432/redb"
+TAILSCALE_DB_HOST = os.environ.get("DB_HOST", "100.72.108.13")
+DB_PORT = os.environ.get("DB_PORT", "5432")
+DB_NAME = os.environ.get("DB_NAME", "redb")
+DB_USER = os.environ.get("DB_USER", "reuser")
+DB_PASS = os.environ.get("DB_PASS", "repass")
+
+DEFAULT_DB_URL = (
+    f"postgresql+psycopg2://{DB_USER}:{DB_PASS}@{TAILSCALE_DB_HOST}:{DB_PORT}/{DB_NAME}"
 )
+
+SQLALCHEMY_DATABASE_URL = DEFAULT_DB_URL
+
+# SQLALCHEMY_DATABASE_URL = os.environ.get(
+#     "DATABASE_URL",
+#     "postgresql+psycopg2://reuser:repass@zs80g4g40css80cck00kcc4k:5432/redb"
+# )
 
 PSYCOPG2_DSN = SQLALCHEMY_DATABASE_URL.replace(
     "postgresql+psycopg2://",
