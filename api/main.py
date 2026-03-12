@@ -14,8 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import bcrypt
 
-# TAILSCALE_DB_HOST = os.environ.get("DB_HOST", "100.72.108.13")
-TAILSCALE_DB_HOST = os.environ.get("DB_HOST", "72.62.231.249")
+TAILSCALE_DB_HOST = os.environ.get("DB_HOST", "100.72.108.13")
 DB_PORT = os.environ.get("DB_PORT", "5432")
 DB_NAME = os.environ.get("DB_NAME", "redb")
 DB_USER = os.environ.get("DB_USER", "reuser")
