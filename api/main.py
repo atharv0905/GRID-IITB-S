@@ -14,15 +14,24 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import bcrypt
 
-TAILSCALE_DB_HOST = os.environ.get("DB_HOST", "100.72.108.13")
-DB_PORT = os.environ.get("DB_PORT", "5432")
-DB_NAME = os.environ.get("DB_NAME", "redb")
-DB_USER = os.environ.get("DB_USER", "reuser")
-DB_PASS = os.environ.get("DB_PASS", "repass")
+TAILSCALE_DB_HOST = "100.72.108.13"
+DB_PORT = "5432"
+DB_NAME = "redb"
+DB_USER = "reuser"
+DB_PASS = "repass"
 
 DEFAULT_DB_URL = (
-    f"postgresql+psycopg2://{DB_USER}:{DB_PASS}@{TAILSCALE_DB_HOST}:{DB_PORT}/{DB_NAME}"
+    f"postgresql+psycopg2://{DB_USER}:{DB_PASS}@{TAILSCALE_DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=disable"
 )
+# TAILSCALE_DB_HOST = os.environ.get("DB_HOST", "100.72.108.13")
+# DB_PORT = os.environ.get("DB_PORT", "5432")
+# DB_NAME = os.environ.get("DB_NAME", "redb")
+# DB_USER = os.environ.get("DB_USER", "reuser")
+# DB_PASS = os.environ.get("DB_PASS", "repass")
+
+# DEFAULT_DB_URL = (
+#     f"postgresql+psycopg2://{DB_USER}:{DB_PASS}@{TAILSCALE_DB_HOST}:{DB_PORT}/{DB_NAME}"
+# )
 
 SQLALCHEMY_DATABASE_URL = DEFAULT_DB_URL
 
