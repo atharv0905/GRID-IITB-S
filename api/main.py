@@ -190,7 +190,7 @@ def plants(region_id: Optional[str] = None):
 
 @app.get("/runs")
 def runs(
-    limit: int = Query(400, ge=1, le=5000),
+    limit: int = Query(1000, ge=1, le=5000),
     model_name: Optional[str] = None,
     region_id: Optional[str] = None,
 ):
