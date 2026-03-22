@@ -190,7 +190,6 @@ def plants(region_id: Optional[str] = None):
 
 @app.get("/runs")
 def runs(
-    limit: int = Query(1000, ge=1, le=5000),
     model_name: Optional[str] = None,
     region_id: Optional[str] = None,
 ):
@@ -215,12 +214,11 @@ def runs(
     WHERE (:m IS NULL OR UPPER(model_name) = UPPER(:m))
       AND (:rid IS NULL OR region_id = :rid)
     ORDER BY run_t0_utc DESC
-    LIMIT :lim
     """
     with engine.begin() as conn:
         rows = conn.execute(
             text(q),
-            {"m": model_name, "rid": region_id, "lim": limit}
+            {"m": model_name, "rid": region_id}
         ).mappings().all()
     return {"items": list(rows)}
 
