@@ -271,11 +271,10 @@ def aggregate_power(
 ):
     try:
         q = """
-        WITH ranked_runs AS (
+        WITH latest_run_per_plant AS (
             SELECT
                 mp.plant_id,
-                mp.power_pred_mw,
-                mp.valid_time_utc,
+                fr.run_id,
                 fr.run_t0_utc,
                 ROW_NUMBER() OVER (
                     PARTITION BY mp.plant_id
@@ -287,47 +286,52 @@ def aggregate_power(
             WHERE (:region_id IS NULL OR p.region_id = :region_id)
               AND (:model_name IS NULL OR fr.model_name = :model_name)
               AND (:plant_ids IS NULL OR mp.plant_id = ANY(:plant_ids))
-              AND mp.valid_time_utc >= NOW()
-              AND mp.valid_time_utc < NOW() + interval '1 hour'
+        ),
+
+        latest_valid_runs AS (
+            SELECT plant_id, run_id
+            FROM latest_run_per_plant
+            WHERE rn = 1
+        ),
+
+        current_hour_data AS (
+            SELECT
+                mp.plant_id,
+                mp.power_pred_mw
+            FROM mi_predictions mp
+            JOIN latest_valid_runs lr
+              ON mp.plant_id = lr.plant_id
+             AND mp.run_id = lr.run_id
+            WHERE mp.valid_time_utc >= date_trunc('hour', NOW())
+              AND mp.valid_time_utc < date_trunc('hour', NOW()) + interval '1 hour'
         )
 
         SELECT
-            plant_id,
-            power_pred_mw
-        FROM ranked_runs
-        WHERE rn = 1;
+            COUNT(*) AS plant_count,
+            COALESCE(SUM(power_pred_mw), 0) AS total_power
+        FROM current_hour_data;
         """
 
         with engine.begin() as conn:
-            rows = conn.execute(
+            result = conn.execute(
                 text(q),
                 {
                     "region_id": region_id,
                     "model_name": model_name,
                     "plant_ids": plant_ids
                 }
-            ).mappings().all()
-
-        plants_data = [
-            {
-                "plant_id": row["plant_id"],
-                "power_mw": row["power_pred_mw"]
-            }
-            for row in rows
-        ]
-
-        total_power = sum(row["power_pred_mw"] for row in rows)
+            ).mappings().first()
 
         return {
-            "total_power_mw": total_power,
-            "plants": plants_data
+            "total_power_mw": result["total_power"],
+            "plants_used": result["plant_count"]
         }
 
     except Exception as e:
         return {
             "error": str(e),
             "total_power_mw": 0,
-            "plants": []
+            "plants_used": 0
         }
 
 if __name__ == "__main__":
