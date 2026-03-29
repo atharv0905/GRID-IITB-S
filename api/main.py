@@ -269,60 +269,66 @@ def aggregate_power(
     plant_ids: Optional[List[str]] = Query(None),
     model_name: str = "NOWCAST"
 ):
-    q = """
-    WITH ranked_runs AS (
+    try:
+        q = """
+        WITH ranked_runs AS (
+            SELECT
+                mp.plant_id,
+                mp.power_pred_mw,
+                mp.valid_time_utc,
+                fr.run_t0_utc,
+                ROW_NUMBER() OVER (
+                    PARTITION BY mp.plant_id
+                    ORDER BY fr.run_t0_utc DESC
+                ) as rn
+            FROM mi_predictions mp
+            JOIN forecast_runs fr ON mp.run_id = fr.run_id
+            JOIN plants p ON mp.plant_id = p.plant_id
+            WHERE (:region_id IS NULL OR p.region_id = :region_id)
+              AND (:model_name IS NULL OR fr.model_name = :model_name)
+              AND (:plant_ids IS NULL OR mp.plant_id = ANY(:plant_ids))
+              AND mp.valid_time_utc >= NOW()
+              AND mp.valid_time_utc < NOW() + interval '1 hour'
+        )
+
         SELECT
-            mp.plant_id,
-            mp.power_pred_mw,
-            mp.valid_time_utc,
-            fr.run_t0_utc,
-            ROW_NUMBER() OVER (
-                PARTITION BY mp.plant_id, date_trunc('hour', mp.valid_time_utc)
-                ORDER BY fr.run_t0_utc DESC
-            ) as rn
-        FROM mi_predictions mp
-        JOIN forecast_runs fr ON mp.run_id = fr.run_id
-        JOIN plants p ON mp.plant_id = p.plant_id
-        WHERE (:region_id IS NULL OR p.region_id = :region_id)
-          AND (:model_name IS NULL OR fr.model_name = :model_name)
-          AND (:plant_ids IS NULL OR mp.plant_id = ANY(:plant_ids))
-          AND mp.valid_time_utc >= date_trunc('hour', NOW())
-          AND mp.valid_time_utc < date_trunc('hour', NOW()) + interval '1 hour'
-    )
+            plant_id,
+            power_pred_mw
+        FROM ranked_runs
+        WHERE rn = 1;
+        """
 
-    SELECT
-        plant_id,
-        power_pred_mw
-    FROM ranked_runs
-    WHERE rn = 1;
-    """
+        with engine.begin() as conn:
+            rows = conn.execute(
+                text(q),
+                {
+                    "region_id": region_id,
+                    "model_name": model_name,
+                    "plant_ids": plant_ids
+                }
+            ).mappings().all()
 
-    with engine.begin() as conn:
-        rows = conn.execute(
-            text(q),
+        plants_data = [
             {
-                "region_id": region_id,
-                "model_name": model_name,
-                "plant_ids": plant_ids
+                "plant_id": row["plant_id"],
+                "power_mw": row["power_pred_mw"]
             }
-        ).mappings().all()
+            for row in rows
+        ]
 
-    # --- Per plant data ---
-    plants_data = [
-        {
-            "plant_id": row["plant_id"],
-            "power_mw": row["power_pred_mw"]
+        total_power = sum(row["power_pred_mw"] for row in rows)
+
+        return {
+            "total_power_mw": total_power,
+            "plants": plants_data
         }
-        for row in rows
-    ]
 
-    # --- Total aggregation ---
-    total_power = sum(row["power_pred_mw"] for row in rows)
-
-    return {
-        "total_power_mw": total_power,
-        "plants": plants_data
-    }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "total_power_mw": 0,
+            "plants": []
+        }
 
 if __name__ == "__main__":
     import uvicorn
