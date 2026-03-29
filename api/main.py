@@ -262,6 +262,68 @@ def series(plant_id: str, run_id: str):
         rows = conn.execute(text(q), {"pid": plant_id, "rid": run_id}).mappings().all()
     return {"run_id": run_id, "items": list(rows)}
 
+
+@app.get("/aggregate-power")
+def aggregate_power(
+    region_id: Optional[str] = None,
+    plant_ids: Optional[List[str]] = Query(None),
+    model_name: str = "NOWCAST"
+):
+    q = """
+    WITH ranked_runs AS (
+        SELECT
+            mp.plant_id,
+            mp.power_pred_mw,
+            mp.valid_time_utc,
+            fr.run_t0_utc,
+            ROW_NUMBER() OVER (
+                PARTITION BY mp.plant_id, date_trunc('hour', mp.valid_time_utc)
+                ORDER BY fr.run_t0_utc DESC
+            ) as rn
+        FROM mi_predictions mp
+        JOIN forecast_runs fr ON mp.run_id = fr.run_id
+        JOIN plants p ON mp.plant_id = p.plant_id
+        WHERE (:region_id IS NULL OR p.region_id = :region_id)
+          AND (:model_name IS NULL OR fr.model_name = :model_name)
+          AND (:plant_ids IS NULL OR mp.plant_id = ANY(:plant_ids))
+          AND mp.valid_time_utc >= date_trunc('hour', NOW())
+          AND mp.valid_time_utc < date_trunc('hour', NOW()) + interval '1 hour'
+    )
+
+    SELECT
+        plant_id,
+        power_pred_mw
+    FROM ranked_runs
+    WHERE rn = 1;
+    """
+
+    with engine.begin() as conn:
+        rows = conn.execute(
+            text(q),
+            {
+                "region_id": region_id,
+                "model_name": model_name,
+                "plant_ids": plant_ids
+            }
+        ).mappings().all()
+
+    # --- Per plant data ---
+    plants_data = [
+        {
+            "plant_id": row["plant_id"],
+            "power_mw": row["power_pred_mw"]
+        }
+        for row in rows
+    ]
+
+    # --- Total aggregation ---
+    total_power = sum(row["power_pred_mw"] for row in rows)
+
+    return {
+        "total_power_mw": total_power,
+        "plants": plants_data
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=7000)
