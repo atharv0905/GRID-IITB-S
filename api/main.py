@@ -40,7 +40,7 @@ SQLALCHEMY_DATABASE_URL = os.getenv(
     "postgresql+psycopg2://reuser:repass@zs80g4g40css80cck00kcc4k:5432/redb"
 )
 
-SQLALCHEMY_DATABASE_URL = DEFAULT_DB_URL
+# SQLALCHEMY_DATABASE_URL = DEFAULT_DB_URL
 
 # SQLALCHEMY_DATABASE_URL = os.getenv(
 #     "DATABASE_URL",
