@@ -239,6 +239,58 @@ def runs(
     return {"items": list(rows)}
 
 
+@app.get("/actuals")
+def actuals(
+    plant_id: str,
+    date: Optional[str] = None,   # YYYY-MM-DD in IST; defaults to today IST
+):
+    # Resolve plant_name from plant_id
+    # live_actuals stores plant_name as text — we join via plants table
+    with engine.begin() as conn:
+        plant_row = conn.execute(
+            text("SELECT plant_name FROM plants WHERE plant_id = :pid"),
+            {"pid": plant_id}
+        ).mappings().first()
+
+    if not plant_row:
+        return {"items": []}
+
+    plant_name = plant_row["plant_name"]
+
+    # time_block is assumed to be TIMESTAMPTZ stored in UTC.
+    # We format to "YYYY-MM-DD HH24:MI" in IST so it aligns with the
+    # frontend graph x-axis key (valid_time_ist_local[:16]).
+    if date:
+        q = """
+        SELECT
+            to_char(timezone('Asia/Kolkata', time_block), 'YYYY-MM-DD HH24:MI') AS time_ist,
+            value_mw,
+            quality
+        FROM live_actuals
+        WHERE plant_name = :pname
+          AND (time_block AT TIME ZONE 'Asia/Kolkata')::date = :dt::date
+        ORDER BY time_block
+        """
+        params = {"pname": plant_name, "dt": date}
+    else:
+        q = """
+        SELECT
+            to_char(timezone('Asia/Kolkata', time_block), 'YYYY-MM-DD HH24:MI') AS time_ist,
+            value_mw,
+            quality
+        FROM live_actuals
+        WHERE plant_name = :pname
+          AND (time_block AT TIME ZONE 'Asia/Kolkata')::date =
+              (NOW() AT TIME ZONE 'Asia/Kolkata')::date
+        ORDER BY time_block
+        """
+        params = {"pname": plant_name}
+
+    with engine.begin() as conn:
+        rows = conn.execute(text(q), params).mappings().all()
+    return {"items": list(rows)}
+
+
 @app.get("/series")
 def series(plant_id: str, run_id: str):
     q = """
