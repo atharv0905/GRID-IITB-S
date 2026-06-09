@@ -244,8 +244,6 @@ def actuals(
     plant_id: str,
     date: Optional[str] = None,   # YYYY-MM-DD in IST; defaults to today IST
 ):
-    # Resolve plant_name from plant_id
-    # live_actuals stores plant_name as text — we join via plants table
     with engine.begin() as conn:
         plant_row = conn.execute(
             text("SELECT plant_name FROM plants WHERE plant_id = :pid"),
@@ -253,42 +251,64 @@ def actuals(
         ).mappings().first()
 
     if not plant_row:
+        print(f"[actuals] plant_id {plant_id!r} not found in plants table")
         return {"items": []}
 
     plant_name = plant_row["plant_name"]
 
-    # time_block is assumed to be TIMESTAMPTZ stored in UTC.
-    # We format to "YYYY-MM-DD HH24:MI" in IST so it aligns with the
-    # frontend graph x-axis key (valid_time_ist_local[:16]).
-    if date:
-        q = """
-        SELECT
-            to_char(timezone('Asia/Kolkata', time_block), 'YYYY-MM-DD HH24:MI') AS time_ist,
-            value_mw,
-            quality
-        FROM live_actuals
-        WHERE plant_name = :pname
-          AND (time_block AT TIME ZONE 'Asia/Kolkata')::date = :dt::date
-        ORDER BY time_block
-        """
-        params = {"pname": plant_name, "dt": date}
-    else:
-        q = """
-        SELECT
-            to_char(timezone('Asia/Kolkata', time_block), 'YYYY-MM-DD HH24:MI') AS time_ist,
-            value_mw,
-            quality
-        FROM live_actuals
-        WHERE plant_name = :pname
-          AND (time_block AT TIME ZONE 'Asia/Kolkata')::date =
-              (NOW() AT TIME ZONE 'Asia/Kolkata')::date
-        ORDER BY time_block
-        """
-        params = {"pname": plant_name}
+    # Try time_block first (preferred — aligns with mi_predictions valid_time).
+    # Fall back to recorded_at if time_block is not a castable TIMESTAMPTZ.
+    # Use LOWER(TRIM(...)) match to handle name casing/spacing differences.
+    for time_col in ("time_block", "recorded_at"):
+        try:
+            if date:
+                q = text(f"""
+                SELECT
+                    id,
+                    plant_name,
+                    region,
+                    value_mw,
+                    quality,
+                    time_block,
+                    recorded_at,
+                    fetched_at,
+                    to_char(timezone('Asia/Kolkata', {time_col}::timestamptz), 'YYYY-MM-DD HH24:MI') AS time_ist
+                FROM live_actuals
+                WHERE LOWER(TRIM(plant_name)) = LOWER(TRIM(:pname))
+                  AND ({time_col}::timestamptz AT TIME ZONE 'Asia/Kolkata')::date = :dt::date
+                ORDER BY {time_col}::timestamptz
+                """)
+                params = {"pname": plant_name, "dt": date}
+            else:
+                q = text(f"""
+                SELECT
+                    id,
+                    plant_name,
+                    region,
+                    value_mw,
+                    quality,
+                    time_block,
+                    recorded_at,
+                    fetched_at,
+                    to_char(timezone('Asia/Kolkata', {time_col}::timestamptz), 'YYYY-MM-DD HH24:MI') AS time_ist
+                FROM live_actuals
+                WHERE LOWER(TRIM(plant_name)) = LOWER(TRIM(:pname))
+                  AND ({time_col}::timestamptz AT TIME ZONE 'Asia/Kolkata')::date =
+                      (NOW() AT TIME ZONE 'Asia/Kolkata')::date
+                ORDER BY {time_col}::timestamptz
+                """)
+                params = {"pname": plant_name}
 
-    with engine.begin() as conn:
-        rows = conn.execute(text(q), params).mappings().all()
-    return {"items": list(rows)}
+            with engine.begin() as conn:
+                rows = conn.execute(q, params).mappings().all()
+            print(f"[actuals] plant={plant_name!r} date={date} col={time_col} rows={len(rows)}")
+            return {"items": list(rows)}
+
+        except Exception as e:
+            print(f"[actuals] {time_col} failed for {plant_name!r}: {e}")
+            continue
+
+    return {"items": []}
 
 
 @app.get("/series")
