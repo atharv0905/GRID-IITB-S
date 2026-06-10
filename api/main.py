@@ -240,7 +240,10 @@ def runs(
 
 
 @app.get("/actuals")
-def actuals(plant_id: str):
+def actuals(
+    plant_id: str,
+    date: Optional[str] = None,   # YYYY-MM-DD in IST; defaults to today IST
+):
     with engine.begin() as conn:
         plant_row = conn.execute(
             text("SELECT plant_name FROM plants WHERE plant_id = :pid"),
@@ -253,26 +256,45 @@ def actuals(plant_id: str):
 
     plant_name = plant_row["plant_name"]
 
-    q = text("""
-        SELECT
-            id,
-            plant_name,
-            region,
-            value_mw,
-            quality,
-            time_block,
-            recorded_at,
-            fetched_at
-        FROM live_actuals
-        WHERE LOWER(TRIM(plant_name)) = LOWER(TRIM(:pname))
-          AND (recorded_at AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date
-        ORDER BY recorded_at
-    """)
+    if date:
+        q = text("""
+            SELECT
+                id,
+                plant_name,
+                region,
+                value_mw,
+                quality,
+                time_block,
+                recorded_at,
+                fetched_at
+            FROM live_actuals
+            WHERE LOWER(TRIM(plant_name)) = LOWER(TRIM(:pname))
+              AND (recorded_at AT TIME ZONE 'Asia/Kolkata')::date = :dt::date
+            ORDER BY recorded_at
+        """)
+        params = {"pname": plant_name, "dt": date}
+    else:
+        q = text("""
+            SELECT
+                id,
+                plant_name,
+                region,
+                value_mw,
+                quality,
+                time_block,
+                recorded_at,
+                fetched_at
+            FROM live_actuals
+            WHERE LOWER(TRIM(plant_name)) = LOWER(TRIM(:pname))
+              AND (recorded_at AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date
+            ORDER BY recorded_at
+        """)
+        params = {"pname": plant_name}
 
     with engine.begin() as conn:
-        rows = conn.execute(q, {"pname": plant_name}).mappings().all()
+        rows = conn.execute(q, params).mappings().all()
 
-    print(f"[actuals] plant={plant_name!r} rows={len(rows)}")
+    print(f"[actuals] plant={plant_name!r} date={date} rows={len(rows)}")
     return {"items": list(rows)}
 
 
