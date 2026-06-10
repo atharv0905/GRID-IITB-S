@@ -294,7 +294,7 @@ def actuals(
     with engine.begin() as conn:
         rows = conn.execute(q, params).mappings().all()
 
-    print(f"[actuals] plant={plant_name!r} date={date} rows={len(rows)}")
+    print(f"[actuals] plant={plant_name!r} date={date!r} rows={len(rows)}")
     return {"items": list(rows)}
 
 
