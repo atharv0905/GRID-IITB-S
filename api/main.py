@@ -240,10 +240,7 @@ def runs(
 
 
 @app.get("/actuals")
-def actuals(
-    plant_id: str,
-    date: Optional[str] = None,   # YYYY-MM-DD in IST; defaults to today IST
-):
+def actuals(plant_id: str):
     with engine.begin() as conn:
         plant_row = conn.execute(
             text("SELECT plant_name FROM plants WHERE plant_id = :pid"),
@@ -256,59 +253,27 @@ def actuals(
 
     plant_name = plant_row["plant_name"]
 
-    # Try time_block first (preferred — aligns with mi_predictions valid_time).
-    # Fall back to recorded_at if time_block is not a castable TIMESTAMPTZ.
-    # Use LOWER(TRIM(...)) match to handle name casing/spacing differences.
-    for time_col in ("time_block", "recorded_at"):
-        try:
-            if date:
-                q = text(f"""
-                SELECT
-                    id,
-                    plant_name,
-                    region,
-                    value_mw,
-                    quality,
-                    time_block,
-                    recorded_at,
-                    fetched_at,
-                    to_char(timezone('Asia/Kolkata', {time_col}::timestamptz), 'YYYY-MM-DD HH24:MI') AS time_ist
-                FROM live_actuals
-                WHERE LOWER(TRIM(plant_name)) = LOWER(TRIM(:pname))
-                  AND ({time_col}::timestamptz AT TIME ZONE 'Asia/Kolkata')::date = :dt::date
-                ORDER BY {time_col}::timestamptz
-                """)
-                params = {"pname": plant_name, "dt": date}
-            else:
-                q = text(f"""
-                SELECT
-                    id,
-                    plant_name,
-                    region,
-                    value_mw,
-                    quality,
-                    time_block,
-                    recorded_at,
-                    fetched_at,
-                    to_char(timezone('Asia/Kolkata', {time_col}::timestamptz), 'YYYY-MM-DD HH24:MI') AS time_ist
-                FROM live_actuals
-                WHERE LOWER(TRIM(plant_name)) = LOWER(TRIM(:pname))
-                  AND ({time_col}::timestamptz AT TIME ZONE 'Asia/Kolkata')::date =
-                      (NOW() AT TIME ZONE 'Asia/Kolkata')::date
-                ORDER BY {time_col}::timestamptz
-                """)
-                params = {"pname": plant_name}
+    q = text("""
+        SELECT
+            id,
+            plant_name,
+            region,
+            value_mw,
+            quality,
+            time_block,
+            recorded_at,
+            fetched_at
+        FROM live_actuals
+        WHERE LOWER(TRIM(plant_name)) = LOWER(TRIM(:pname))
+          AND (recorded_at AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date
+        ORDER BY recorded_at
+    """)
 
-            with engine.begin() as conn:
-                rows = conn.execute(q, params).mappings().all()
-            print(f"[actuals] plant={plant_name!r} date={date} col={time_col} rows={len(rows)}")
-            return {"items": list(rows)}
+    with engine.begin() as conn:
+        rows = conn.execute(q, {"pname": plant_name}).mappings().all()
 
-        except Exception as e:
-            print(f"[actuals] {time_col} failed for {plant_name!r}: {e}")
-            continue
-
-    return {"items": []}
+    print(f"[actuals] plant={plant_name!r} rows={len(rows)}")
+    return {"items": list(rows)}
 
 
 @app.get("/series")
