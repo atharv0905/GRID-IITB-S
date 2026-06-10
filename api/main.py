@@ -269,7 +269,7 @@ def actuals(
                 fetched_at
             FROM live_actuals
             WHERE LOWER(TRIM(plant_name)) = LOWER(TRIM(:pname))
-              AND (recorded_at AT TIME ZONE 'Asia/Kolkata')::date = :dt::date
+              AND (recorded_at AT TIME ZONE 'Asia/Kolkata')::date = CAST(:dt AS date)
             ORDER BY recorded_at
         """)
         params = {"pname": plant_name, "dt": date}
