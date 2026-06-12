@@ -180,52 +180,28 @@ def regions():
     return {"items": list(rows)}
 
 
-INDIA_LAT_MIN, INDIA_LAT_MAX = 8.0, 37.6
-INDIA_LON_MIN, INDIA_LON_MAX = 68.0, 97.4
-
-
-def _in_india(row) -> bool:
-    try:
-        lat, lon = float(row["lat"]), float(row["lon"])
-        return INDIA_LAT_MIN <= lat <= INDIA_LAT_MAX and INDIA_LON_MIN <= lon <= INDIA_LON_MAX
-    except (TypeError, ValueError):
-        return False
-
-
 @app.get("/plants")
-def plants(region_id: Optional[str] = None, plant_name: Optional[str] = None):
+def plants(region_id: Optional[str] = None):
     # region_id=None => all plants
-    conditions = []
-    params: dict = {}
-
     if region_id and region_id != "ALL":
-        conditions.append("region_id = :rid")
-        params["rid"] = region_id
-
-    if plant_name:
-        conditions.append("plant_name = :pname")
-        params["pname"] = plant_name
-
-    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
-    q = f"""
+        q = """
         SELECT plant_id, plant_name, plant_type, lat, lon, region_id
         FROM plants
-        {where}
+        WHERE region_id = :rid
         ORDER BY plant_name
         """
+        params = {"rid": region_id}
+    else:
+        q = """
+        SELECT plant_id, plant_name, plant_type, lat, lon, region_id
+        FROM plants
+        ORDER BY plant_name
+        """
+        params = {}
 
     with engine.begin() as conn:
         rows = conn.execute(text(q), params).mappings().all()
-
-    items = list(rows)
-
-    # If a plant_name filter produced exactly 2 duplicates, keep the Indian one
-    if plant_name and len(items) == 2:
-        indian = [r for r in items if _in_india(r)]
-        if len(indian) == 1:
-            items = indian
-
-    return {"items": items}
+    return {"items": list(rows)}
 
 
 @app.get("/runs")
